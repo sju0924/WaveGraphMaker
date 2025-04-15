@@ -1,0 +1,12 @@
+__pycache__/
+*/output/
+*.xlsx
+*.png
+*.jpg
+WaveCalculator.spec
+build/
+dist/git
+*.csv
+*.txt
+*.sgs
+*.exe

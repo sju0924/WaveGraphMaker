@@ -1,12 +1,10 @@
 import pandas as pd
-import os
 import numpy as np
 from math import sqrt
-from Step1 import get_scaleup_factor
-from Step2 import plot_response, plot_scaleup_factor, plot_acceleration
-
+from Step2 import plot_response, plot_scaleup_factor, plot_acceleration,get_scaleup_factor
+from openpyxl import Workbook
 PATH_STEP4 = "./Step4"
-
+delta_T = 0.02
 def get_srss_table():
     
     # Create a DataFrame
@@ -14,41 +12,46 @@ def get_srss_table():
 
     # 응답스펙트럼 X,Y 방향 테이블 불러오기
     path = PATH_STEP4 + "/input/SGS_result"
-    for i in range(7):
+    for i in range(100):
         idx = str(i+1)
         eq_filename_x = path + "/"+idx+"x.sgs"
         eq_filename_y = path + "/"+idx+"y.sgs"       
-        
-        with open(eq_filename_x,'r',encoding='utf-8') as f:
+        try:
+            with open(eq_filename_x,'r',encoding='utf-8') as f:
 
-            lines = f.read().splitlines()[9:-1]
+                lines = f.read().splitlines()[9:-1]
 
-            # x방향 데이터 불러오기기
-            numeric_data = [line.split(',') for line in lines]
-            df_x = pd.DataFrame(numeric_data, columns=['T', idx + 'x'])
+                # x방향 데이터 불러오기기
+                numeric_data = [line.split(',') for line in lines]
+                df_x = pd.DataFrame(numeric_data, columns=['T', idx + 'x'])
 
-            if len(numeric_data) > len(df['T']):
-                df['T'] = pd.to_numeric(df_x['T'])
+                if len(numeric_data) > len(df['T']):
+                    df['T'] = pd.to_numeric(df_x['T'])
 
-            df[idx + 'x'] = pd.to_numeric(df_x[idx + 'x'])
+                df[idx + 'x'] = pd.to_numeric(df_x[idx + 'x'])
 
 
-        with open(eq_filename_y,'r',encoding='utf-8') as f:
+            with open(eq_filename_y,'r',encoding='utf-8') as f:
+                
+                lines = f.read().splitlines()[9:-1]
+
+                # x방향 데이터 불러오기기
+                numeric_data = [line.split(',') for line in lines]
+                df_y = pd.DataFrame(numeric_data, columns=['T', idx + 'y'])
+
+                if len(numeric_data) > len(df['T']):
+                    df['T'] = pd.to_numeric(df_y['T'])  
+
+                df[idx + 'y'] = pd.to_numeric(df_y[idx + 'y'])
             
-            lines = f.read().splitlines()[9:-1]
+            # srss 계산산
+            df[str(i+1)+'srss'] = df[str(i+1)+'x'] * df[str(i+1)+'x'] + df[str(i+1)+'y'] * df[str(i+1)+'y']
+            df[str(i+1)+'srss'] = df[str(i+1)+'srss'].apply(sqrt)      
 
-            # x방향 데이터 불러오기기
-            numeric_data = [line.split(',') for line in lines]
-            df_y = pd.DataFrame(numeric_data, columns=['T', idx + 'y'])
-
-            if len(numeric_data) > len(df['T']):
-                df['T'] = pd.to_numeric(df_y['T'])  
-
-            df[idx + 'y'] = pd.to_numeric(df_y[idx + 'y'])
-        
-        # srss 계산산
-        df[str(i+1)+'srss'] = df[str(i+1)+'x'] * df[str(i+1)+'x'] + df[str(i+1)+'y'] * df[str(i+1)+'y']
-        df[str(i+1)+'srss'] = df[str(i+1)+'srss'].apply(sqrt)      
+        except FileNotFoundError:
+            break
+        except Exception as e:
+            print(e)
 
     df.set_index('T', inplace=True)
 
@@ -66,71 +69,197 @@ def get_acceleration_table():
 
     # 응답스펙트럼 X,Y 방향 테이블 불러오기
     path = PATH_STEP4 + "/input/RSP_match_result"
-    for i in range(7):
+    for i in range(100):
         idx = str(i+1)    
         acc_filename_x = path + "/"+idx+"x.txt"
         acc_filename_y = path + "/"+idx+"y.txt"       
-        
-        with open(acc_filename_x,'r',encoding='utf-8') as f:
+        cur='x'
+        try:
+            with open(acc_filename_x,'r',encoding='utf-8') as f:
+                
+                lines = f.read().splitlines()
+
+                # x방향 데이터 불러오기기
+                numeric_data = [line.split() for line in lines]
+                numeric_data = numeric_data[2:]
+                # DataFrame에 추가
+                df_x = pd.DataFrame(numeric_data, columns=['T', idx+'x_raw', idx + 'x', 'unknown'])
+                df_x['T'] = df_x['T'].astype(float)
+                df_x = df_x[np.isclose(df_x['T'] % delta_T, 0, atol=1e-10)]
             
-            lines = f.read().splitlines()
+                df[idx + 'xT'] = pd.to_numeric(df_x['T'])
+                df[idx + 'xAcc'] = pd.to_numeric(df_x[idx + 'x'])
 
-            # x방향 데이터 불러오기기
-            numeric_data = [line.split() for line in lines]  
-            metadata = numeric_data[1]
-            npts = int(metadata[0])  # 데이터 포인트 수
-            delta_t = float(metadata[1])  # 샘플링 간격
+            with open(acc_filename_y,'r',encoding='utf-8') as f:
+                cur='y'
+                lines = f.read().splitlines()
 
-            # 각 열의 데이터를 배열에 추가  
-            data = []
-            for line in numeric_data[2:]:  # 2번째 줄부터 데이터 시작
-                data.extend(map(float, line.split()))       
-       
-            # NumPy 배열로 변환
-            acceleration = np.array(data)
+                # y방향 데이터 불러오기기
+                numeric_data = [line.split() for line in lines]  
+                numeric_data = numeric_data[2:]
 
-            # 시간 배열 생성
-            time = np.arange(0, npts * delta_t, delta_t)
-
-            # DataFrame에 추가가
-            df[idx +'xT'] = time
-            df[idx + 'xAcc'] = acceleration
-
-        with open(acc_filename_y,'r',encoding='utf-8') as f:
+                # DataFrame에 추가
+                df_y = pd.DataFrame(numeric_data, columns=['T', idx+'y_raw', idx + 'y', 'unknown'])
+                df_y['T'] = df_y['T'].astype(float)
+                df_y = df_y[np.isclose(df_y['T'] % delta_T, 0, atol=1e-10)]
             
-            lines = f.read().splitlines()
+                df[idx + 'yT'] = pd.to_numeric(df_y['T'])
+                df[idx + 'yAcc'] = pd.to_numeric(df_y[idx + 'y'])
+        except FileNotFoundError:
+            break
 
-            # y방향 데이터 불러오기기
-            numeric_data = [line.split() for line in lines]  
-            metadata = numeric_data[1]
-            npts = int(metadata[0])  # 데이터 포인트 수
-            delta_t = float(metadata[1])  # 샘플링 간격
-
-            # 각 열의 데이터를 배열에 추가  
-            data = []
-            for line in numeric_data[2:]:  # 2번째 줄부터 데이터 시작
-                data.extend(map(float, line.split()))       
-       
-            # NumPy 배열로 변환
-            acceleration = np.array(data)
-
-            # 시간 배열 생성
-            time = np.arange(0, npts * delta_t, delta_t)
-
-            # DataFrame에 추가
-            df[idx +'yT'] = time
-            df[idx + 'yAcc'] = acceleration
-
+        except Exception as e:
+            print("idx: ",idx,", ",cur)
+            print(e.__class__.__name__ , e)
+    df = df.reset_index(drop=True)
     return df
 
-
-def main():
+def Step4_SF():
     srss_table = get_srss_table()
     scale = get_scaleup_factor(srss_table, new = 1)
+    return srss_table, scale
+
+def Step4_srss(srss_table, scale):
     plot_srss(srss_table)
-    plot_scaleup_factor(srss_table, scale, PATH_STEP4 + "/output/SRSS_Scale")
+    plot_scaleup_factor(srss_table, scale, PATH_STEP4 + "/output/SRSS_Scale", mod='total')
+
+def Step4_acc(scale):
+    acc_table = get_acceleration_table()
+    plot_acceleration(acc_table, scale, PATH_STEP4 + "/output/Acceleration/2400", mod='text')
+
+    acc_table_copy = get_acceleration_table()
+    for i in range(100):
+        idx = str(i+1)
+        try:
+            acc_table_copy[idx+"xT"] = acc_table_copy[idx+"xT"]
+            acc_table_copy[idx+"yT"] = acc_table_copy[idx+"yT"]
+            acc_table_copy[idx+"xAcc"] = acc_table_copy[idx+"xAcc"] * 4 / 5
+            acc_table_copy[idx+"yAcc"] = acc_table_copy[idx+"yAcc"] * 4 / 5
+        except KeyError:
+            break
+    plot_acceleration(acc_table_copy, scale, PATH_STEP4 + "/output/Acceleration/1000", mod = 'text')
+
+    for i in range(100):
+        idx = str(i+1)
+        try:
+            acc_table[idx+"xAcc(1400)"] = acc_table[idx+"xAcc"] * 4 / 5
+            acc_table[idx+"yAcc(1400)"] = acc_table[idx+"yAcc"] * 4 / 5
+            acc_table[idx+"xT(1400)"] = acc_table[idx+"xT"]
+            acc_table[idx+"yT(1400)"] = acc_table[idx+"yT"]
+        except KeyError:
+            break
+
+    acc_table = acc_table[[f"{i}{suffix}" for i in range(1, int(idx)) for suffix in ["xT","xAcc","xT(1400)","xAcc(1400)", "yT","yAcc","yT(1400)", "yAcc(1400)"]]]
+    file_name = PATH_STEP4 + "/output/Acceleration/output.xlsx"
+    workbook = Workbook()  # 파일이 없으면 새로 생성
+
+    # 시트 선택 또는 새로 생성
+    sheet_name = "Sheet1"
+    worksheet = workbook.create_sheet(sheet_name)
+
+    # 1️⃣ 첫 번째 행 (병합하여 "1x", "2x", ... "7x" 작성)
+    for i in range(int(idx)-1):
+        col_start = (i * 8) + 1  # openpyxl은 1-based index
+        col_end = col_start + 3
+        worksheet.merge_cells(start_row=1, start_column=col_start, end_row=1, end_column=col_end)
+        worksheet.cell(row=1, column=col_start, value=f"{i+1}x")
+
+        col_start = (i * 8) + 5
+        col_end = col_start + 3
+        worksheet.merge_cells(start_row=1, start_column=col_start, end_row=1, end_column=col_end)
+        worksheet.cell(row=1, column=col_start, value=f"{i+1}y")
+
+    # 2️⃣ 두 번째 행 (각 열에 2400, 1000 입력)
+    for i in range((int(idx)-1) * 2):
+        col_start = (i * 4)+1
+        worksheet.cell(row=2, column=col_start, value=2400)
+        worksheet.merge_cells(start_row=2, start_column=col_start, end_row=2, end_column=col_start+1)
+        worksheet.cell(row=2, column=col_start + 2, value=1000)
+        worksheet.merge_cells(start_row=2, start_column=col_start+2, end_row=2, end_column=col_start+3)
+
+    # 엑셀 파일 저장
+    workbook.save(file_name)
+    workbook.close()
+
+    with pd.ExcelWriter(file_name, engine="openpyxl",mode='a',  if_sheet_exists="overlay") as writer:
+        acc_table.to_excel(writer, sheet_name="Sheet1", startrow=2, index=False,header=False)  # 3번째 행부터 입력
+
+def main():
+    cmd = ""    
+    while(cmd != "yes"):
+        print("RSP match 결과값을 input 폴더에 넣어주세요")
+        cmd = input("완료 후 'yes' 를 입력하세요 > ")
 
     acc_table = get_acceleration_table()
-    plot_acceleration(acc_table, scale, PATH_STEP4 + "/Acceleration")
+
+    cmd = ""    
+    while(cmd != "yes"):
+        print("SGS 결과값을 input 폴더에 넣어주세요")
+        cmd = input("완료 후 'yes' 를 입력하세요 > ")
+
+    srss_table = get_srss_table()
+    scale = get_scaleup_factor(srss_table, new = 1)
+
+    plot_srss(srss_table)
+    plot_scaleup_factor(srss_table, scale, PATH_STEP4 + "/output/SRSS_Scale")
+    plot_acceleration(acc_table, scale, PATH_STEP4 + "/output/Acceleration/2400")
+
+    acc_table_copy = acc_table
+    for i in range(100):
+        idx = str(i+1)
+        try:
+            acc_table_copy[idx+"xAcc"] = acc_table[idx+"xAcc"] * 0.8
+            acc_table_copy[idx+"yAcc"] = acc_table[idx+"yAcc"] * 0.8
+        except KeyError:
+            break
+    plot_acceleration(acc_table, scale, PATH_STEP4 + "/output/Acceleration/1000")
+
+    for i in range(100):
+        idx = str(i+1)
+        try:
+            acc_table[idx+"xAcc(1400)"] = acc_table[idx+"xAcc"] * 0.8
+            acc_table[idx+"yAcc(1400)"] = acc_table[idx+"yAcc"] * 0.8
+            acc_table[idx+"xT(1400)"] = acc_table[idx+"xT"]
+            acc_table[idx+"yT(1400)"] = acc_table[idx+"yT"]
+        except KeyError:
+            break
+
+    acc_table = acc_table[[f"{i}{suffix}" for i in range(1, int(idx)) for suffix in ["xT","xAcc","xT(1400)","xAcc(1400)", "yT","yAcc","yT(1400)", "yAcc(1400)"]]]
+    file_name = PATH_STEP4 + "/output/Acceleration/output.xlsx"
+    workbook = Workbook()  # 파일이 없으면 새로 생성
+
+    # 시트 선택 또는 새로 생성
+    sheet_name = "Sheet"
+    worksheet = workbook.create_sheet(sheet_name)
+
+    # 1️⃣ 첫 번째 행 (병합하여 "1x", "2x", ... "7x" 작성)
+    for i in range(int(idx)-1):
+        col_start = (i * 8) + 1  # openpyxl은 1-based index
+        col_end = col_start + 3
+        worksheet.merge_cells(start_row=1, start_column=col_start, end_row=1, end_column=col_end)
+        worksheet.cell(row=1, column=col_start, value=f"{i+1}x")
+
+        col_start = (i * 8) + 5
+        col_end = col_start + 3
+        worksheet.merge_cells(start_row=1, start_column=col_start, end_row=1, end_column=col_end)
+        worksheet.cell(row=1, column=col_start, value=f"{i+1}y")
+
+    # 2️⃣ 두 번째 행 (각 열에 2400, 1000 입력)
+    for i in range((int(idx)-1) * 2):
+        col_start = (i * 4)+1
+        worksheet.cell(row=2, column=col_start, value=2400)
+        worksheet.merge_cells(start_row=2, start_column=col_start, end_row=2, end_column=col_start+1)
+        worksheet.cell(row=2, column=col_start + 2, value=1000)
+        worksheet.merge_cells(start_row=2, start_column=col_start+2, end_row=2, end_column=col_start+3)
+
+    # 엑셀 파일 저장
+    workbook.save(file_name)
+    workbook.close()
+
+    with pd.ExcelWriter(file_name, engine="openpyxl",mode='a',  if_sheet_exists="overlay") as writer:
+        acc_table.to_excel(writer, sheet_name="Sheet", startrow=2, index=False)#,header=False)  # 3번째 행부터 입력
 
     # ToDo: 1400년 주기 지진파 데이터 작성하기
+
+if __name__=="__main__":
+    main()

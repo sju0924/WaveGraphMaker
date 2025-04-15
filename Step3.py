@@ -16,18 +16,26 @@ def generate_eq():
         os.makedirs(path)
 
     # eq 파일 생성
-    for i in range(7):
-        idx = str(i+1)
-        eq_filename_x = path + "eq"+idx+"x.eq"
-        eq_filename_y = path + "eq"+idx+"y.eq"
+    
+    for i in range(100):
+        try:
+            idx = str(i+1)
+            eq_filename_x = path + "eq"+idx+"x.eq"
+            eq_filename_y = path + "eq"+idx+"y.eq"
 
-        with open(eq_filename_x,'w',encoding='utf-8') as f:
-            for item in df[idx+"xAcc"]:
-                f.write(str(item).upper() + '\n')
+            with open(eq_filename_x,'w',encoding='utf-8') as f:
+                for item in df[idx+"xAcc"]:
+                    if item == 'NaN':
+                        break
+                    f.write(str(item).upper() + '\n')
 
-        with open(eq_filename_y,'w',encoding='utf-8') as f:
-            for item in df[idx+"yAcc"]:
-                f.write(str(item).upper() + '\n')        
+            with open(eq_filename_y,'w',encoding='utf-8') as f:
+                for item in df[idx+"yAcc"]:
+                    if item == 'NaN':
+                        break
+                    f.write(str(item).upper() + '\n')     
+        except KeyError:
+            break
         
 def get_srss_table():
     
@@ -36,41 +44,44 @@ def get_srss_table():
 
     # 응답스펙트럼 X,Y 방향 테이블 불러오기
     path = PATH_STEP3 + "/input/SGS_result"
-    for i in range(7):
+    for i in range(100):
         idx = str(i+1)
         eq_filename_x = path + "/"+idx+"x.sgs"
         eq_filename_y = path + "/"+idx+"y.sgs"       
         
-        with open(eq_filename_x,'r',encoding='utf-8') as f:
+        try:
+            with open(eq_filename_x,'r',encoding='utf-8') as f:
 
-            lines = f.read().splitlines()[9:-1]
+                lines = f.read().splitlines()[9:-1]
 
-            # x방향 데이터 불러오기기
-            numeric_data = [line.split(',') for line in lines]
-            df_x = pd.DataFrame(numeric_data, columns=['T', idx + 'x'])
+                # x방향 데이터 불러오기기
+                numeric_data = [line.split(',') for line in lines]
+                df_x = pd.DataFrame(numeric_data, columns=['T', idx + 'x'])
 
-            if len(numeric_data) > len(df['T']):
-                df['T'] = pd.to_numeric(df_x['T'])
+                if len(numeric_data) > len(df['T']):
+                    df['T'] = pd.to_numeric(df_x['T'])
 
-            df[idx + 'x'] = pd.to_numeric(df_x[idx + 'x'])
+                df[idx + 'x'] = pd.to_numeric(df_x[idx + 'x'])
 
 
-        with open(eq_filename_y,'r',encoding='utf-8') as f:
+            with open(eq_filename_y,'r',encoding='utf-8') as f:
+                
+                lines = f.read().splitlines()[9:-1]
+
+                # x방향 데이터 불러오기기
+                numeric_data = [line.split(',') for line in lines]
+                df_y = pd.DataFrame(numeric_data, columns=['T', idx + 'y'])
+
+                if len(numeric_data) > len(df['T']):
+                    df['T'] = pd.to_numeric(df_y['T'])  
+
+                df[idx + 'y'] = pd.to_numeric(df_y[idx + 'y'])
             
-            lines = f.read().splitlines()[9:-1]
-
-            # x방향 데이터 불러오기기
-            numeric_data = [line.split(',') for line in lines]
-            df_y = pd.DataFrame(numeric_data, columns=['T', idx + 'y'])
-
-            if len(numeric_data) > len(df['T']):
-                df['T'] = pd.to_numeric(df_y['T'])  
-
-            df[idx + 'y'] = pd.to_numeric(df_y[idx + 'y'])
-        
-        # srss 계산산
-        df[str(i+1)+'srss'] = df[str(i+1)+'x'] * df[str(i+1)+'x'] + df[str(i+1)+'y'] * df[str(i+1)+'y']
-        df[str(i+1)+'srss'] = df[str(i+1)+'srss'].apply(sqrt)      
+            # srss 계산산
+            df[str(i+1)+'srss'] = df[str(i+1)+'x'] * df[str(i+1)+'x'] + df[str(i+1)+'y'] * df[str(i+1)+'y']
+            df[str(i+1)+'srss'] = df[str(i+1)+'srss'].apply(sqrt)      
+        except FileNotFoundError:
+            break
 
     df.set_index('T', inplace=True)
 
@@ -93,56 +104,70 @@ def get_acceleration_table():
 
     # 응답스펙트럼 X,Y 방향 테이블 불러오기
     path = PATH_STEP3 + "/input/Shake_M_result"
-    for i in range(7):
+    for i in range(100):
         idx = str(i+1)    
         acc_filename_x = path + "/"+idx+"x.txt"
         acc_filename_y = path + "/"+idx+"y.txt"       
+        try:
+            with open(acc_filename_x,'r',encoding='utf-8') as f:
+                
+                lines = f.read().splitlines()
+
+                # x방향 데이터 불러오기기
+                numeric_data = [line.split() for line in lines]            
         
-        with open(acc_filename_x,'r',encoding='utf-8') as f:
+                df_x = pd.DataFrame(numeric_data, columns=['T', idx+'x_raw', idx + 'x', 'unknown'])
             
-            lines = f.read().splitlines()
+                df[idx + 'xT'] = pd.to_numeric(df_x['T'])
+                df[idx + 'xAcc'] = pd.to_numeric(df_x[idx + 'x'])
 
-            # x방향 데이터 불러오기기
-            numeric_data = [line.split() for line in lines]            
-       
-            df_x = pd.DataFrame(numeric_data, columns=['T', idx+'x_raw', idx + 'x', 'unknown'])
-           
-            df[idx + 'xT'] = pd.to_numeric(df_x['T'])
-            df[idx + 'xAcc'] = pd.to_numeric(df_x[idx + 'x'])
+            with open(acc_filename_y,'r',encoding='utf-8') as f:
+                
+                lines = f.read().splitlines()
 
-        with open(acc_filename_y,'r',encoding='utf-8') as f:
-            
-            lines = f.read().splitlines()
+                # x방향 데이터 불러오기기
+                numeric_data = [line.split() for line in lines]
 
-            # x방향 데이터 불러오기기
-            numeric_data = [line.split() for line in lines]
-
-            df_y = pd.DataFrame(numeric_data, columns=['T', idx+'y_raw', idx + 'y', 'unknown'])  
-            df[idx + 'yT'] = pd.to_numeric(df_y['T'])
-            df[idx + 'yAcc'] = pd.to_numeric(df_y[idx + 'y'])
+                df_y = pd.DataFrame(numeric_data, columns=['T', idx+'y_raw', idx + 'y', 'unknown'])  
+                df[idx + 'yT'] = pd.to_numeric(df_y['T'])
+                df[idx + 'yAcc'] = pd.to_numeric(df_y[idx + 'y'])
+        except FileNotFoundError:
+            break
+        except ValueError as e:
+            print(e)
+            print(acc_filename_x)
+            break
 
     return df
 
-# shakeM 프로그램을 실행하여 가속도 데이터 생성
-def execute_shakeM():
-    pass
+def Step3_eq():
+    generate_eq()
 
-# SGS 프로그램을 사용하여 10초 주기의 응
-def execute_sgs():
+def Step3_srss():
+    try:
+        scale = get_scaleup_factor()
+    except FileNotFoundError:
+        print("Scale up Factor 파일이 존재하지 않습니다. Step 2에서 생성해주세요")
+        return
+    if len(scale) == 0:
+        print("Scale up Factor 파일이 손상되었습니다.")
+        return
+    srss_table = get_srss_table()
+    plot_srss(srss_table)
+    plot_scaleup_factor(srss_table, scale, PATH_STEP3 + "/output/SRSS_Scale",mod='total')
+
+def Step3_acc():
+    try:
+        scale = get_scaleup_factor()
+    except FileNotFoundError:
+        print("Scale up Factor 파일이 존재하지 않습니다. Step 2에서 생성해주세요")
+        return
+    if len(scale) == 0:
+        print("Scale up Factor 파일이 손상되었습니다.")
+        return
     
-
-    # Sample data
-    time = np.linspace(0, 1, 1000)  # 1초 동안 1000개의 샘플
-    acceleration = np.sin(2 * np.pi * 50 * time) + 0.5 * np.sin(2 * np.pi * 120 * time)
-
-    # FFT 계산
-    fft_result = np.fft.fft(acceleration)
-    frequencies = np.fft.fftfreq(len(time), d=(time[1] - time[0]))
-
-    # 양수 주파수만 사용
-    positive_frequencies = frequencies[frequencies >= 0]
-    magnitude = np.abs(fft_result[frequencies >= 0])
-
+    acc_table = get_acceleration_table()
+    plot_acceleration(acc_table, scale, PATH_STEP3 + "/output/Acceleration")
 
 def main():
 
@@ -152,16 +177,24 @@ def main():
     cmd = ""
     
     while(cmd != "yes"):
-        print("SGS 및 Shake_M 결과값을 input 폴더에 넣어주세요")
+        print("SGS 결과값을 input 폴더에 넣어주세요")
         cmd = input("완료 후 'yes' 를 입력하세요 > ")
-
-    srss_table = get_srss_table()
+    
     scale = get_scaleup_factor()
-    plot_srss(srss_table)
-    plot_scaleup_factor(srss_table, scale, PATH_STEP3 + "/output/SRSS_Scale")
     
     acc_table = get_acceleration_table()
     plot_acceleration(acc_table, scale, PATH_STEP3 + "/output/Acceleration")
+
+    cmd = ""
+    while(cmd != "yes"):
+        print("Shake_M 결과값을 input 폴더에 넣어주세요")
+        cmd = input("완료 후 'yes' 를 입력하세요 > ")
+
+    srss_table = get_srss_table()
+    plot_srss(srss_table)
+    plot_scaleup_factor(srss_table, scale, PATH_STEP3 + "/output/SRSS_Scale")
+    
+
     
 if __name__=="__main__":
     main()

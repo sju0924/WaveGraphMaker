@@ -57,11 +57,19 @@ def plot_target_response_spectra(T_min, T_max, target):
     # 건물 최대, 최소주기 표시
     tmin_transform = transform_x(T_min*0.2, T_min*0.2, ratio_tmin, ratio_second_half)
     plt.axvline(x=tmin_transform, color='red', linestyle='--')
-    plt.text(tmin_transform, -0.05, '0.2T', color='red', ha='center', va='top', fontsize=10)
-
+    plt.text(
+    tmin_transform, -0.05,
+    f'0.2T({T_min * 0.2:.2f})',
+    color='red', ha='center', va='top', fontsize=10
+    )
+    
     tmax_transform = transform_x(T_max*1.5, T_min*0.2, ratio_tmin, ratio_second_half)
     plt.axvline(x=tmax_transform, color='blue', linestyle='--')
-    plt.text(tmax_transform, -0.05, '1.5T', color='blue',ha='center', va='top', fontsize=10)
+    plt.text(
+    tmax_transform, -0.05,
+    f'1.5T({T_max * 1.5:.2f})',
+    color='blue', ha='center', va='top', fontsize=10
+    )
 
     xticks = [0]
     xticks_label=['0']
@@ -82,6 +90,10 @@ def plot_target_response_spectra(T_min, T_max, target):
     # 그래프 꾸미기
     plt.title("Spectrum("+target+")")
     plt.xlabel("T")
+
+    plt.xlim([0,100])
+    plt.ylim([0,1])
+
     plt.legend()
     plt.grid(True)
 
@@ -116,11 +128,19 @@ def plot_s1_response_spectra(T_min, T_max):
     # 건물 최대, 최소주기 표시
     tmin_transform = transform_x(T_min*0.2, T_min*0.2, ratio_tmin, ratio_second_half)
     plt.axvline(x=tmin_transform, color='red', linestyle='--')
-    plt.text(tmin_transform, -0.05, '0.2T', color='red', ha='center', va='top', fontsize=10)
+    plt.text(
+    tmin_transform, -0.05,
+    f'0.2T({T_min * 0.2:.2f})',
+    color='red', ha='center', va='top', fontsize=10
+    )
 
     tmax_transform = transform_x(T_max*1.5, T_min*0.2, ratio_tmin, ratio_second_half)
     plt.axvline(x=tmax_transform, color='blue', linestyle='--')
-    plt.text(tmax_transform, -0.05, '1.5T', color='blue',ha='center', va='top', fontsize=10)
+    plt.text(
+    tmax_transform, -0.05,
+    f'1.5T({T_max * 1.5:.2f})',
+    color='blue', ha='center', va='top', fontsize=10
+    )
 
     xticks = [0]
     xticks_label=['0']
@@ -152,7 +172,7 @@ def plot_s1_response_spectra(T_min, T_max):
     plt.savefig(PATH_STEP1 + "/Spectrum(S1).png")
     plt.show()
 
-def main():
+def Step1():
     # JSON 파일 읽기
     with open("config.json", "r") as json_file:
         config = json.load(json_file)
@@ -161,6 +181,31 @@ def main():
     T_min = config["T_min"]
     T_max = config["T_max"]
     target = 'S4'
+    cmd = 'Y'
+
+    while True:
+        target = input("목표 응답 스펙트럼 종류를 입력해주세요 >> ")
+        cmd = input("목표 응답 스펙트럼: " +target+" (Y/n)")
+        if cmd == 'Y' or cmd =='y'or cmd == '':
+            break
+
+    plot_target_response_spectra(T_min, T_max, target)
+    plot_s1_response_spectra(T_min, T_max)
+
+    print("목표 응답스펙트럼 그래프 생성이 완료되었습니다.")
+
+def main():
+    # JSON 파일 읽기
+    with open("config.json", "r") as json_file:
+        config = json.load(json_file)
+
+    # 읽은 데이터 사용
+    T_min = config["T_min"]
+    T_max = config["T_max"]
+
+    target = 'S4'
+
+    
 
     plot_target_response_spectra(T_min, T_max, target)
     plot_s1_response_spectra(T_min, T_max)
