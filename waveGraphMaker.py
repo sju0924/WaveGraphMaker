@@ -3,11 +3,43 @@ from colorama import Fore, Style
 import pandas as pd
 import cmd
 import sys
+from Step0 import Step0
 from Step1 import Step1 
 from Step2 import Step2_acc, Step2_SF, Step2_srss
 from Step3 import Step3_acc,  Step3_srss, Step3_eq
 from Step4 import Step4_acc, Step4_SF, Step4_srss
 
+class SubMenuForStep0(cmd.Cmd):
+    
+    intro = (
+        Fore.CYAN
+        + "Step 0\n"
+        + "1. 데이터 랜덤 선택하기(7개 지진파)\n"
+        + "(back) 뒤로 가기\n"
+        + Style.RESET_ALL
+    )
+    prompt = Fore.GREEN + "Step0> " + Style.RESET_ALL
+
+    def do_1(self, arg):
+        """서브 메뉴의 1번 기능"""
+        while True:
+            cmd = input(Fore.MAGENTA + ">>> input: step0/input에 _SearchResults.csv 및 가속도 데이터를 입력하였습니까? (y/N)" + Style.RESET_ALL)
+            if cmd == 'y' or cmd =='Y':
+                break
+        Step0()
+        print(Fore.MAGENTA + ">>> output: /waves.xlsx" + Style.RESET_ALL)
+
+    def do_back(self, arg):
+        """
+        메인 메뉴로 돌아가기
+        'back' 명령어를 입력하면 서브 메뉴(cmdloop)를 빠져나옵니다.
+        """
+        print(Fore.YELLOW + ">>> 메인 메뉴로 돌아갑니다." + Style.RESET_ALL)
+        return True  # True를 리턴하면 cmdloop()를 종료합니다.
+
+    def default(self, line):
+        """정의되지 않은 명령어 처리"""
+        print(Fore.RED + f"알 수 없는 명령어입니다: {line}" + Style.RESET_ALL)
 class SubMenuForStep1(cmd.Cmd):
     
     intro = (
@@ -209,6 +241,7 @@ class MyCLI(cmd.Cmd):
         + "\n" 
         + Fore.YELLOW
         + "수행할 단계를 입력하세요.\n"
+        + "(0) 지진파 랜덤 선택\n"
         + "(1) Step1\n"
         + "(2) Step2\n"
         + "(3) Step3\n"
@@ -218,7 +251,9 @@ class MyCLI(cmd.Cmd):
     
     # 명령 프롬프트에 표시될 문자열
     prompt = Fore.GREEN + "Command > " + Style.RESET_ALL
-    
+    def do_0(self, arg):
+        """0번 명령어를 처리하는 메소드"""
+        self.step0()
     def do_1(self, arg):
         """1번 명령어를 처리하는 메소드"""
         self.step1()
@@ -233,6 +268,11 @@ class MyCLI(cmd.Cmd):
         """2번 명령어를 처리하는 메소드"""
         self.step4()
     
+    def step0(self):
+        print(Fore.MAGENTA + ">>> Step 0" + Style.RESET_ALL)
+        sub_menu = SubMenuForStep0()
+        sub_menu.cmdloop()  
+
     def step1(self):
         print(Fore.MAGENTA + ">>> Step 1" + Style.RESET_ALL)
         sub_menu = SubMenuForStep1()
