@@ -79,12 +79,24 @@ def get_acceleration_table():
                 
                 lines = f.read().splitlines()
 
-                # x방향 데이터 불러오기기
-                numeric_data = [line.split() for line in lines]
-                numeric_data = numeric_data[2:]
-                # DataFrame에 추가
-                df_x = pd.DataFrame(numeric_data, columns=['T', idx+'x_raw', idx + 'x', 'unknown'])
-                df_x['T'] = df_x['T'].astype(float)
+                # x방향 데이터 불러오기
+                raw_data = [line.split() for line in lines]
+                dt = float(raw_data[1][1])
+                numeric_data = []
+
+                # 세 번째 줄부터 모든 숫자를 1차원 리스트로 추출
+                for row in raw_data[2:]:
+                    numeric_data.extend([float(x.replace('E', 'e')) for x in row]) 
+                
+                # 시간 배열 생성
+                time_array = np.arange(0, dt * len(numeric_data), dt)
+                time_array = time_array[:len(numeric_data)]
+
+                # DataFrame 생성
+                df_x = pd.DataFrame({
+                    'T': time_array,
+                     idx + 'x': numeric_data
+                })
                 df_x = df_x[np.isclose(df_x['T'] % delta_T, 0, atol=1e-10)]
             
                 df[idx + 'xT'] = pd.to_numeric(df_x['T'])
@@ -94,13 +106,24 @@ def get_acceleration_table():
                 cur='y'
                 lines = f.read().splitlines()
 
-                # y방향 데이터 불러오기기
-                numeric_data = [line.split() for line in lines]  
-                numeric_data = numeric_data[2:]
+                # y방향 데이터 불러오기
+                raw_data = [line.split() for line in lines]
+                dt = float(raw_data[1][1])
+                numeric_data = []
 
-                # DataFrame에 추가
-                df_y = pd.DataFrame(numeric_data, columns=['T', idx+'y_raw', idx + 'y', 'unknown'])
-                df_y['T'] = df_y['T'].astype(float)
+                # 세 번째 줄부터 모든 숫자를 1차원 리스트로 추출
+                for row in raw_data[2:]:
+                    numeric_data.extend([float(x.replace('E', 'e')) for x in row]) 
+
+                # 시간 배열 생성
+                time_array = np.arange(0, dt * len(numeric_data), dt)
+                time_array = time_array[:len(numeric_data)]
+
+                # DataFrame 생성
+                df_y = pd.DataFrame({
+                    'T': time_array,
+                     idx + 'y': numeric_data
+                })
                 df_y = df_y[np.isclose(df_y['T'] % delta_T, 0, atol=1e-10)]
             
                 df[idx + 'yT'] = pd.to_numeric(df_y['T'])

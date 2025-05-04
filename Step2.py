@@ -98,18 +98,78 @@ def plot_response(table, path, mod='general'):
             break
     
     if mod == 'total':
+
+        with open("config.json", "r") as json_file:
+            config = json.load(json_file)
+            T_min = config["T_min"]
+            T_max = config["T_max"]
+
         plt.figure(figsize=(11, 6))
         plt.plot(df_response_transform.index, df_response_transform["1.3*MCE*0.8"], label="1.3*MCE*0.8")
         plt.plot(df_response_transform.index, df_response_transform["1.3*MCE*0.9"], label="1.3*MCE*0.9")
-
-        for i in range(100):
             
+
+        # 건물 최대, 최소주기 표시
+        tmin_transform = transform_x(T_min*0.2, T_min*0.2, ratio_tmin, ratio_second_half)
+        plt.axvline(x=tmin_transform, color='red', linestyle='--')
+        plt.text(
+            tmin_transform, -0.05,
+            f'0.2T({T_min * 0.2:.2f})',
+            color='red', ha='center', va='top', fontsize=10
+        )
+
+        tmax_transform = transform_x(T_max*1.5, T_min*0.2, ratio_tmin, ratio_second_half)
+        plt.axvline(x=tmax_transform, color='blue', linestyle='--')
+        plt.text(
+            tmax_transform, -0.05,
+            f'1.5T({T_max * 1.5:.2f})',
+            color='blue', ha='center', va='top', fontsize=10
+        )
+
+        eq_lines = []  # EQ 데이터 저장
+        eq_labels = []
+
+        for i in range(100):            
             try:
-                idx = str(i+1)                          
-                plt.plot(df_transform.index, df_transform[idx+"srss"], label="EQ"+idx)
+                idx = str(i+1)      
+                col = idx + "srss"
+                y = df_transform[col].values
+                eq_lines.append(y)
+                eq_labels.append("EQ" + idx)                    
+                # plt.plot(df_transform.index, df_transform[idx+"srss"], label="EQ"+idx)
 
             except KeyError:
                 break
+
+        eq_lines = np.array(eq_lines)  # shape: (num_eq, n_points)
+        mean_line = np.mean(eq_lines, axis=0)
+        std_line = np.std(eq_lines, axis=0)
+
+        # 기준선 및 보간
+        mce_09 = df_response_transform["1.3*MCE*0.9"].values
+        mce_09_interp = np.interp(df_transform.index, df_response_transform.index, mce_09)
+
+         # 이상치 판단 (mean ± 2*std 넘는 그래프)
+        outlier_indices = []
+        for i, y in enumerate(eq_lines):
+            # 조건 1: 평균 ± 2*std 기준
+            is_std_outlier = np.any((y > mean_line + 3 * std_line) | (y < mean_line - 3 * std_line))
+
+            # 조건 2: tmin ~ tmax 사이에서 MCE0.9보다 작으면
+            is_mce_outlier = np.any((y < mce_09_interp) & ((df_transform.index >= tmin_transform) & (df_transform.index <= tmax_transform)))
+            if is_std_outlier or is_mce_outlier:
+                outlier_indices.append(i)
+
+        # 평균 꺾은선 그리기
+        plt.plot(df_transform.index, mean_line, label="EQ-Average", linewidth=2, linestyle="--", color="purple")
+
+        # EQ 그래프 다시 그리기 (이상치는 빨간색)
+        for i, y in enumerate(eq_lines):
+            label = eq_labels[i]
+            color = "red" if i in outlier_indices else None
+            lw = 2 if i in outlier_indices else 1
+            plt.plot(df_transform.index, y, label=label, linewidth=lw, color=color)
+
         # x축 범위 매칭
         plt.xticks(xticks, xticks_label)         
         plt.xlim(left=0)
@@ -255,7 +315,6 @@ def get_acceleration_table():
 # @input    scale: scalue up factor들을 저장하는 배열열
 # @output   Step2/Acceleration 위치에 scale up factor를 적용한 x,y방향 가속도도 그래프 이미지 파일 저장장
 def plot_acceleration(df, scale, path,mod = 'general'):
-    
     # 그래프 이미지 저장 폴더 생성
     if not os.path.exists(path):
         os.makedirs(path)
@@ -277,13 +336,18 @@ def plot_acceleration(df, scale, path,mod = 'general'):
 
         df[idx+"xAcc"] = df[idx+"xAcc"] * scale[i]
         acc_max = df.iloc[acc_max_idx][idx+"xAcc"]
-        textbox_loc = 0.01
+               
+
         if acc_max < 0:
-            textbox_loc *= -1
+            textbox_loc = -0.01
+        else:
+            textbox_loc = 0.01
+
+        textbox_off = (acc_max) * 0.07
 
         try:
             plt.plot(df.iloc[acc_max_idx][idx+"xT"], df.iloc[acc_max_idx][idx+"xAcc"], 'o', color='black')
-            plt.text(df.iloc[acc_max_idx][idx+"xT"], df.iloc[acc_max_idx][idx+"xAcc"] + textbox_loc * 2, str(round(df.iloc[acc_max_idx][idx+"xAcc"],3))+"g", ha='center', va='top', fontsize=10)
+            plt.text(df.iloc[acc_max_idx][idx+"xT"], df.iloc[acc_max_idx][idx+"xAcc"] + textbox_off, str(round(df.iloc[acc_max_idx][idx+"xAcc"],3))+"g", ha='center', va='center', fontsize=10)
             plt.axhline(y=0, color='black', linestyle='-')
         except IndexError:
             print(acc_max_idx, idx)
@@ -324,20 +388,23 @@ def plot_acceleration(df, scale, path,mod = 'general'):
 
         df[idx+"yAcc"] = df[idx+"yAcc"] * scale[i]
         acc_max = df.iloc[acc_max_idx][idx+"yAcc"]
-        textbox_loc = 0.01
-        if acc_max < 0:
-            textbox_loc *= -1
 
+        if acc_max < 0:
+            textbox_loc = -0.01
+        else:
+            textbox_loc = 0.01
+
+        textbox_off = (acc_max) * 0.07
         
         plt.plot(df[idx+"yT"], df[idx+"yAcc"])
         plt.plot(df.iloc[acc_max_idx][idx+"yT"], df.iloc[acc_max_idx][idx+"yAcc"], 'o', color='black')
-        plt.text(df.iloc[acc_max_idx][idx+"yT"], df.iloc[acc_max_idx][idx+"yAcc"] + textbox_loc * 2, str(round(df.iloc[acc_max_idx][idx+"yAcc"],3))+"g", ha='center', va='top', fontsize=10)
+        plt.text(df.iloc[acc_max_idx][idx+"yT"], df.iloc[acc_max_idx][idx+"yAcc"] + textbox_off, str(round(df.iloc[acc_max_idx][idx+"yAcc"],3))+"g", ha='center', va='center', fontsize=10)
         plt.axhline(y=0, color='black', linestyle='-')
 
         # 그래프 꾸미기
         
         plt.title(idx+"Y")
-        plt.ylim( acc_max  * -120 * textbox_loc, acc_max  * 120 * textbox_loc)  # 10% 여유
+        plt.ylim(acc_max * -120 * textbox_loc, acc_max * 120 * textbox_loc)  # 10% 여유
         plt.xlabel("Time(sec)")
         plt.ylabel("Acceleration(g)")
 

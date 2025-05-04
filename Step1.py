@@ -28,6 +28,7 @@ def transform_x(x, T_min, ratio_tmin=0, ratio_second_half = {}):
     return transformed_x
 
 def get_response_spectrum(mode='DBE'):
+    
     dataset = pd.read_excel('./waves.xlsx', sheet_name = mode)
     df = pd.DataFrame(dataset)
 
@@ -45,6 +46,7 @@ def plot_target_response_spectra(T_min, T_max, target):
     ratio_second_half = config["ratio_second_half"] = {int(k): v for k, v in config["ratio_second_half"].items()}
 
     df = get_response_spectrum()
+    print(df)
     df_transform = df.copy()
     df_transform.index = df_transform["T"].map(lambda x: transform_x(x, T_min*0.2, ratio_tmin, ratio_second_half))
 
@@ -58,17 +60,17 @@ def plot_target_response_spectra(T_min, T_max, target):
     tmin_transform = transform_x(T_min*0.2, T_min*0.2, ratio_tmin, ratio_second_half)
     plt.axvline(x=tmin_transform, color='red', linestyle='--')
     plt.text(
-    tmin_transform, -0.05,
-    f'0.2T({T_min * 0.2:.2f})',
-    color='red', ha='center', va='top', fontsize=10
+        tmin_transform, -0.05,
+        f'0.2T({T_min * 0.2:.2f})',
+        color='red', ha='center', va='top', fontsize=10
     )
     
     tmax_transform = transform_x(T_max*1.5, T_min*0.2, ratio_tmin, ratio_second_half)
     plt.axvline(x=tmax_transform, color='blue', linestyle='--')
     plt.text(
-    tmax_transform, -0.05,
-    f'1.5T({T_max * 1.5:.2f})',
-    color='blue', ha='center', va='top', fontsize=10
+        tmax_transform, -0.05,
+        f'1.5T({T_max * 1.5:.2f})',
+        color='blue', ha='center', va='top', fontsize=10
     )
 
     xticks = [0]
@@ -101,7 +103,6 @@ def plot_target_response_spectra(T_min, T_max, target):
     if not os.path.exists(PATH_STEP1):
         os.makedirs(PATH_STEP1)
     plt.savefig(PATH_STEP1 + "/Spectrum("+target+").png")
-    plt.show()
     
 
 def plot_s1_response_spectra(T_min, T_max):
@@ -170,7 +171,6 @@ def plot_s1_response_spectra(T_min, T_max):
     if not os.path.exists(PATH_STEP1):
         os.makedirs(PATH_STEP1)
     plt.savefig(PATH_STEP1 + "/Spectrum(S1).png")
-    plt.show()
 
 def Step1():
     # JSON 파일 읽기
