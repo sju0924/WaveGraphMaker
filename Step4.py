@@ -62,6 +62,16 @@ def get_srss_table():
 def plot_srss(srss_table):
     plot_response(srss_table, PATH_STEP4 + "/output/SRSS")
 
+# @input    series: 길이를 맞추기 위한 배열 target_len: 타겟 길이
+# @output   NaN 패딩된 series
+def pad_series_to_length(series, target_len):
+    """series를 target_len 길이에 맞춰 NaN 패딩"""
+    series = pd.Series(series)
+    if len(series) < target_len:
+        padding = pd.Series([np.nan] * (target_len - len(series)))
+        return pd.concat([series, padding], ignore_index=True)
+    else:
+        return series[:target_len].reset_index(drop=True)
 
 def get_acceleration_table():
     # Create a DataFrame
@@ -97,10 +107,30 @@ def get_acceleration_table():
                     'T': time_array,
                      idx + 'x': numeric_data
                 })
-                df_x = df_x[np.isclose(df_x['T'] % delta_T, 0, atol=1e-10)]
-            
-                df[idx + 'xT'] = pd.to_numeric(df_x['T'])
-                df[idx + 'xAcc'] = pd.to_numeric(df_x[idx + 'x'])
+                df_x = df_x[np.isclose(df_x['T'] % delta_T, 0, atol=1e-6)]
+
+                len_df = len(df)
+                len_x = len(df_x)
+
+                # 1. df가 더 길면 → df_x 쪽에 NaN 추가
+                if len_df > len_x:
+                    padded_T = pad_series_to_length(df_x['T'], len_df)
+                    padded_acc = pad_series_to_length(df_x[idx + 'x'], len_df)
+                # 2. df_x가 더 길면 → df 쪽을 확장
+                elif len_x > len_df:
+                    # df를 확장: 인덱스를 늘리고 NaN을 채움
+                    df = df.reindex(range(len_x)).reset_index(drop=True)
+                    padded_T = pd.Series(df_x['T'].values)
+                    padded_acc = pd.Series(df_x[idx + 'x'].values)
+                else:
+                    # 길이가 같으면 그대로
+                    padded_T = pd.Series(df_x['T'].values)
+                    padded_acc = pd.Series(df_x[idx + 'x'].values)
+
+                # 할당
+                df[idx + 'xT'] = pd.to_numeric(padded_T, errors='coerce')
+                df[idx + 'xAcc'] = pd.to_numeric(padded_acc, errors='coerce')
+
 
             with open(acc_filename_y,'r',encoding='utf-8') as f:
                 cur='y'
@@ -126,8 +156,28 @@ def get_acceleration_table():
                 })
                 df_y = df_y[np.isclose(df_y['T'] % delta_T, 0, atol=1e-10)]
             
-                df[idx + 'yT'] = pd.to_numeric(df_y['T'])
-                df[idx + 'yAcc'] = pd.to_numeric(df_y[idx + 'y'])
+                len_df = len(df)
+                len_y = len(df_y)
+
+                # 1. df가 더 길면 → df_x 쪽에 NaN 추가
+                if len_df > len_y:
+                    padded_T = pad_series_to_length(df_y['T'], len_df)
+                    padded_acc = pad_series_to_length(df_y[idx + 'y'], len_df)
+                # 2. df_x가 더 길면 → df 쪽을 확장
+                elif len_y > len_df:
+                    # df를 확장: 인덱스를 늘리고 NaN을 채움
+                    df = df.reindex(range(len_y)).reset_index(drop=True)
+                    padded_T = pd.Series(df_y['T'].values)
+                    padded_acc = pd.Series(df_y[idx + 'y'].values)
+                else:
+                    # 길이가 같으면 그대로
+                    padded_T = pd.Series(df_y['T'].values)
+                    padded_acc = pd.Series(df_y[idx + 'y'].values)
+
+                # 할당
+                df[idx + 'yT'] = pd.to_numeric(padded_T, errors='coerce')
+                df[idx + 'yAcc'] = pd.to_numeric(padded_acc, errors='coerce')
+
         except FileNotFoundError:
             break
 
@@ -135,6 +185,7 @@ def get_acceleration_table():
             print("idx: ",idx,", ",cur)
             print(e.__class__.__name__ , e)
     df = df.reset_index(drop=True)
+
     return df
 
 def Step4_SF():
@@ -178,7 +229,7 @@ def Step4_acc(scale):
 
     # 시트 선택 또는 새로 생성
     sheet_name = "Sheet1"
-    worksheet = workbook.create_sheet(sheet_name)
+    worksheet = workbook.create_sheet(title=sheet_name, index=0)
 
     # 1️⃣ 첫 번째 행 (병합하여 "1x", "2x", ... "7x" 작성)
     for i in range(int(idx)-1):
@@ -205,7 +256,7 @@ def Step4_acc(scale):
     workbook.close()
 
     with pd.ExcelWriter(file_name, engine="openpyxl",mode='a',  if_sheet_exists="overlay") as writer:
-        acc_table.to_excel(writer, sheet_name="Sheet1", startrow=2, index=False,header=False)  # 3번째 행부터 입력
+        acc_table.to_excel(writer, sheet_name=sheet_name, startrow=2, index=False,header=False)  # 3번째 행부터 입력
 
 def main():
     cmd = ""    

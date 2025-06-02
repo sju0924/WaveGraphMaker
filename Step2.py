@@ -162,13 +162,12 @@ def plot_response(table, path, mod='general'):
 
         # 평균 꺾은선 그리기
         plt.plot(df_transform.index, mean_line, label="EQ-Average", linewidth=2, linestyle="--", color="purple")
-
-        # EQ 그래프 다시 그리기 (이상치는 빨간색)
+       
+       # EQ 그래프 그리기 
         for i, y in enumerate(eq_lines):
             label = eq_labels[i]
-            color = "red" if i in outlier_indices else None
-            lw = 2 if i in outlier_indices else 1
-            plt.plot(df_transform.index, y, label=label, linewidth=lw, color=color)
+            plt.plot(df_transform.index, y, label=label)
+
 
         # x축 범위 매칭
         plt.xticks(xticks, xticks_label)         
@@ -180,9 +179,54 @@ def plot_response(table, path, mod='general'):
         plt.ylabel("Spectral Acceleration")
         plt.legend()
         plt.grid(True)
-    
         # 그래프 출력
         plt.savefig(path + "/SRSS.png")
+        plt.clf()
+
+        # EQ 그래프 다시 그리기 (이상치는 빨간색)
+        plt.figure()
+        plt.figure(figsize=(11, 6))
+
+         # 건물 최대, 최소주기 표시
+        plt.plot(df_response_transform.index, df_response_transform["1.3*MCE*0.8"], label="1.3*MCE*0.8")
+        plt.plot(df_response_transform.index, df_response_transform["1.3*MCE*0.9"], label="1.3*MCE*0.9")
+        plt.axvline(x=tmin_transform, color='red', linestyle='--')
+        plt.text(
+            tmin_transform, -0.05,
+            f'0.2T({T_min * 0.2:.2f})',
+            color='red', ha='center', va='top', fontsize=10
+        )
+
+        plt.axvline(x=tmax_transform, color='blue', linestyle='--')
+        plt.text(
+            tmax_transform, -0.05,
+            f'1.5T({T_max * 1.5:.2f})',
+            color='blue', ha='center', va='top', fontsize=10
+        )
+
+        # 평균 꺾은선 그리기
+        plt.plot(df_transform.index, mean_line, label="EQ-Average", linewidth=2, linestyle="--", color="purple")
+
+        #EQ 그래프 그리기
+        for i, y in enumerate(eq_lines):
+            label = eq_labels[i]
+            color = "red" if i in outlier_indices else None
+            lw = 2 if i in outlier_indices else 1
+            plt.plot(df_transform.index, y, label=label, linewidth=lw, color=color)
+    
+         # x축 범위 매칭
+        plt.xticks(xticks, xticks_label)         
+        plt.xlim(left=0)
+        plt.ylim(bottom=0)
+        # 그래프 꾸미기
+        plt.title("SRSS")
+        plt.xlabel("Period")
+        plt.ylabel("Spectral Acceleration")
+        plt.legend()
+        plt.grid(True)
+
+        # 그래프 출력
+        plt.savefig(path + "/SRSS_outlier.png")
         plt.clf()
     
     plt.close()
@@ -325,6 +369,7 @@ def plot_acceleration(df, scale, path,mod = 'general'):
                 
         # x방향 그래프 그리기기
         plt.figure(figsize=(11, 6))
+
         try:
             
             plt.plot(df[idx+"xT"], df[idx+"xAcc"] * scale[i])
@@ -343,12 +388,12 @@ def plot_acceleration(df, scale, path,mod = 'general'):
         else:
             textbox_loc = 0.01
 
-        textbox_off = (acc_max) * 0.07
-
+        textbox_off = (acc_max) * 0.1
+        plt.axhline(y=0, color='black', linestyle='-')
         try:
             plt.plot(df.iloc[acc_max_idx][idx+"xT"], df.iloc[acc_max_idx][idx+"xAcc"], 'o', color='black')
-            plt.text(df.iloc[acc_max_idx][idx+"xT"], df.iloc[acc_max_idx][idx+"xAcc"] + textbox_off, str(round(df.iloc[acc_max_idx][idx+"xAcc"],3))+"g", ha='center', va='center', fontsize=10)
-            plt.axhline(y=0, color='black', linestyle='-')
+            plt.text(df.iloc[acc_max_idx][idx+"xT"], df.iloc[acc_max_idx][idx+"xAcc"] + textbox_off, str(round(df.iloc[acc_max_idx][idx+"xAcc"],3))+"g", ha='center', va='center', fontsize=13)
+
         except IndexError:
             print(acc_max_idx, idx)
         # 그래프 꾸미기
@@ -381,7 +426,7 @@ def plot_acceleration(df, scale, path,mod = 'general'):
 
 
         #y방향 그래프 그리기
-        plt.figure(figsize=(11, 6))
+        plt.figure(figsize=(11, 6)) 
 
         acc_abs = df[idx+"yAcc"].abs()
         acc_max_idx = acc_abs.idxmax()        
@@ -394,12 +439,14 @@ def plot_acceleration(df, scale, path,mod = 'general'):
         else:
             textbox_loc = 0.01
 
-        textbox_off = (acc_max) * 0.07
+        textbox_off = (acc_max) * 0.1
         
+        plt.axhline(y=0, color='black', linestyle='-')
+
         plt.plot(df[idx+"yT"], df[idx+"yAcc"])
         plt.plot(df.iloc[acc_max_idx][idx+"yT"], df.iloc[acc_max_idx][idx+"yAcc"], 'o', color='black')
-        plt.text(df.iloc[acc_max_idx][idx+"yT"], df.iloc[acc_max_idx][idx+"yAcc"] + textbox_off, str(round(df.iloc[acc_max_idx][idx+"yAcc"],3))+"g", ha='center', va='center', fontsize=10)
-        plt.axhline(y=0, color='black', linestyle='-')
+        plt.text(df.iloc[acc_max_idx][idx+"yT"], df.iloc[acc_max_idx][idx+"yAcc"] + textbox_off, str(round(df.iloc[acc_max_idx][idx+"yAcc"],3))+"g", ha='center', va='center', fontsize=13)
+        
 
         # 그래프 꾸미기
         
